@@ -25,7 +25,7 @@ namespace QualificationReviewTool
         private IWorkbook work_book = null;
         //考生信息表
         private DataTable examinee_dt = null;
-        private String examinee_table_name = "武汉资审名单";
+        private String examinee_table_name = "国考入围面试中单";
         //联系方式信息表
         private DataTable user_info_dt = null;
         private String user_info_table_name = "大量数据";
@@ -180,10 +180,21 @@ namespace QualificationReviewTool
             String sheet_name = this.summary_table_name;
             DataTable dt = (DataTable)summary_dt;
             //若该表存在,则删除表
+            /*
             for (int i = 0; i < work_book.NumberOfSheets; i++)
             {
                 ISheet tmp_sheet = work_book.GetSheetAt(i);
                 if (tmp_sheet.SheetName == sheet_name)
+                {
+                    work_book.RemoveSheetAt(i);
+                }
+            }
+            */
+            //删除原表
+            for (int i = 0;  i < work_book.NumberOfSheets; i++)
+            {
+                ISheet tmp_sheet = work_book.GetSheetAt(i);
+                if (tmp_sheet.SheetName == this.examinee_table_name || tmp_sheet.SheetName == this.user_info_table_name || tmp_sheet.SheetName == sheet_name)
                 {
                     work_book.RemoveSheetAt(i);
                 }
@@ -273,18 +284,19 @@ namespace QualificationReviewTool
         {
             //解析数据
             status_update(0, 1, 0, "开始解析数据...");
-            this.examinee_dt = this.export_to_datatable(this.work_book.GetSheet(this.examinee_table_name), 2);
+            this.examinee_dt = this.export_to_datatable(this.work_book.GetSheet(this.examinee_table_name), 0);
             this.user_info_dt = this.export_to_datatable(this.work_book.GetSheet(this.user_info_table_name), 0);
             this.summary_dt = new DataTable();
 
             status_update(0, 1, 0, "正在检查列名是否符合...");
             ArrayList col_list=new ArrayList();
-            col_list.Add("姓名");
-            col_list.Add("招录职位");
-            col_list.Add("招录计划");
-            col_list.Add("笔试折算分");
-            col_list.Add("笔试排名");
-            col_list.Add("职位代码");
+            col_list.Add("准考证号");
+            col_list.Add("考生姓名");
+            col_list.Add("部门代码");
+            col_list.Add("报考部门");
+            col_list.Add("报考职位代码");
+            col_list.Add("报考职位名称");
+            col_list.Add("最低面试分数");
             ArrayList col_list2=new ArrayList();
             col_list2.Add("姓名");
             col_list2.Add("电话");
@@ -300,7 +312,7 @@ namespace QualificationReviewTool
                 for (int i = 0; i < this.examinee_dt.Rows.Count; )
                 {
                     //判断名字是否为空
-                    if (string.IsNullOrEmpty(this.examinee_dt.Rows[i]["姓名"].ToString()))
+                    if (string.IsNullOrEmpty(this.examinee_dt.Rows[i]["考生姓名"].ToString()))
                     {
                         examinee_dt.Rows.RemoveAt(i);
                     }
@@ -312,7 +324,7 @@ namespace QualificationReviewTool
                 // 增加列
                 this.summary_dt.Columns.Add("姓名");
                 this.summary_dt.Columns.Add("手机号");
-                this.summary_dt.Columns.Add("描述");
+                //this.summary_dt.Columns.Add("描述");
                 this.summary_dt.Columns.Add("解决方案");
 
                 int row_count = this.user_info_dt.Rows.Count;
@@ -332,28 +344,31 @@ namespace QualificationReviewTool
                         //成功匹配到
                         match_row = (DataRow)match_result[0];
                         //描述
+                        /*
                         dataRow[2] = "未报名,学员" + match_row["姓名"]
                             + ",报考岗位:" + match_row["招录职位"]
                             + ",招录" + match_row["招录计划"] + "人"
                             + ",考了" + match_row["笔试折算分"] + "分"
                             + ",排第" + match_row["笔试排名"] + "名"
                             + ",职位代码" + match_row["职位代码"];
+                         * */
                         //解决方案
-                        String status = (int.Parse(match_row["笔试排名"].ToString()) > int.Parse(match_row["招录计划"].ToString())) ? "翻盘" : "状元";
-                        dataRow[3] = "#name#,推荐#recommend#(" + status + "),预计回访#visit_time#";
+                        //String status = (int.Parse(match_row["笔试排名"].ToString()) > int.Parse(match_row["招录计划"].ToString())) ? "翻盘" : "状元";
+                        //dataRow[3] = "#name#,推荐#recommend#(" + status + "),预计回访#visit_time#";
+                        dataRow[2] = dataRow[0]+",推荐#recommend#,预计回访#visit_time#";
                         this.summary_dt.Rows.Add(dataRow);
                     }
                     else if (match_result.Count() == 0)
                     {
                         //未匹配到
                         dataRow[2] = "未查询到该生信息!";
-                        dataRow[3] = "#name#,推荐#recommend#(" + "未匹配" + "),预计回访#visit_time#";
+                        //dataRow[3] = "#name#,推荐#recommend#(" + "未匹配" + "),预计回访#visit_time#";
                     }
                     else
                     {
                         //大于1,多个匹配
                         dataRow[2] = "该姓名存在多条记录!请人工处理!";
-                        dataRow[3] = "#name#,推荐#recommend#(" + "多条匹配" + "),预计回访#visit_time#";
+                        //dataRow[3] = "#name#,推荐#recommend#(" + "多条匹配" + "),预计回访#visit_time#";
                         this.summary_dt.Rows.Add(dataRow);
                     }
                     //更新进度条和状态栏
@@ -410,7 +425,7 @@ namespace QualificationReviewTool
         //搜索对应关系
         private DataRow[] match_info_by_name(DataTable dt,String name)
         {
-            return dt.Select("姓名='"+name+"'");
+            return dt.Select("考生姓名='"+name+"'");
         }
 
         //退出程序提示
@@ -490,19 +505,20 @@ namespace QualificationReviewTool
                 String tempStr = tempGdv.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
                 //打开新窗口
                 Form edit_cell_win = new EditCellWin(
-                    tempGdv.Rows[e.RowIndex].Cells[3].Value.ToString()
+                    tempGdv.Rows[e.RowIndex].Cells[2].Value.ToString()
                     );
                 if (edit_cell_win.ShowDialog() == DialogResult.OK)
                 {
                     //修改所有行的解决方案
                     for (int i = 0; i < tempGdv.Rows.Count; i++)
                     {
-                        String base_str = tempGdv.Rows[i].Cells[3].Value.ToString();
+                        String base_str = tempGdv.Rows[i].Cells[2].Value.ToString();
                         //正则提取解决方案内容
-                        base_str=Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", EditCellWin.name_value + ",推荐");
-                        base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*\(", ",推荐" + EditCellWin.s_time_value + "(");
+                        //改名
+                        //base_str=Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", EditCellWin.name_value + ",推荐");
+                        base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*\,", ",推荐" + EditCellWin.s_time_value + ",");
                         base_str = Regex.Replace(base_str, @",预计回访[\u4e00-\u9fa5 \._#0-9a-zA-Z]*$", ",预计回访" + EditCellWin.rc_time_value);
-                        tempGdv.Rows[i].Cells[3].Value = base_str;
+                        tempGdv.Rows[i].Cells[2].Value = base_str;
                     }
                 }
             }
@@ -524,7 +540,7 @@ namespace QualificationReviewTool
             if (tempGdv.CurrentRow.Index > -1 && tempGdv.CurrentRow.Index > -1)//防止 Index 出错
             {
                 //获取字符串
-                String tempStr = tempGdv.Rows[tempGdv.CurrentRow.Index].Cells[3].Value.ToString();
+                String tempStr = tempGdv.Rows[tempGdv.CurrentRow.Index].Cells[2].Value.ToString();
                 //打开新窗口
                 Form edit_cell_win = new EditCellWin(
                     tempStr
@@ -534,12 +550,12 @@ namespace QualificationReviewTool
                     //修改所有行的解决方案
                     for (int i = 0; i < tempGdv.Rows.Count; i++)
                     {
-                        String base_str = tempGdv.Rows[i].Cells[3].Value.ToString();
+                        String base_str = tempGdv.Rows[i].Cells[2].Value.ToString();
                         //正则提取解决方案内容
-                        base_str = Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", EditCellWin.name_value + ",推荐");
+                        //base_str = Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", EditCellWin.name_value + ",推荐");
                         base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*\(", ",推荐" + EditCellWin.s_time_value + "(");
                         base_str = Regex.Replace(base_str, @",预计回访[\u4e00-\u9fa5 \._#0-9a-zA-Z]*$", ",预计回访" + EditCellWin.rc_time_value);
-                        tempGdv.Rows[i].Cells[3].Value = base_str;
+                        tempGdv.Rows[i].Cells[2].Value = base_str;
                     }
                 }
             }

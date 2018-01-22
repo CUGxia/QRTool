@@ -159,7 +159,7 @@
             // 
             this.toolStripStatusLabel1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.None;
             this.toolStripStatusLabel1.Name = "toolStripStatusLabel1";
-            this.toolStripStatusLabel1.Size = new System.Drawing.Size(28, 19);
+            this.toolStripStatusLabel1.Size = new System.Drawing.Size(49, 19);
             this.toolStripStatusLabel1.Spring = true;
             this.toolStripStatusLabel1.Text = "toolStripStatusLabel1";
             // 
@@ -167,8 +167,8 @@
             // 
             this.statusbar_author.Name = "statusbar_author";
             this.statusbar_author.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.statusbar_author.Size = new System.Drawing.Size(68, 19);
-            this.statusbar_author.Text = "CUG Max";
+            this.statusbar_author.Size = new System.Drawing.Size(47, 19);
+            this.statusbar_author.Text = "Dorad";
             // 
             // statusbar_blog_url
             // 
