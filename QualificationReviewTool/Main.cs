@@ -191,15 +191,17 @@ namespace QualificationReviewTool
             }
             */
             //删除原表
-            for (int i = 0;  i < work_book.NumberOfSheets; i++)
+            /*for (int i = 0;  i < work_book.NumberOfSheets; i++)
             {
                 ISheet tmp_sheet = work_book.GetSheetAt(i);
                 if (tmp_sheet.SheetName == this.examinee_table_name || tmp_sheet.SheetName == this.user_info_table_name || tmp_sheet.SheetName == sheet_name)
                 {
                     work_book.RemoveSheetAt(i);
                 }
-            }
-            ISheet sheet = work_book.CreateSheet(sheet_name);
+            }*/
+            XSSFWorkbook export_workbook = new XSSFWorkbook();
+            ISheet sheet=export_workbook.CreateSheet(sheet_name);
+            //ISheet sheet = work_book.CreateSheet(sheet_name);
             IRow dataRow = sheet.CreateRow(0);
             foreach (DataColumn column in dt.Columns)
             {
@@ -219,7 +221,7 @@ namespace QualificationReviewTool
             status_update(0, row_count, row_count, "Start writing to the file.");
             using (FileStream fs = new FileStream(this.export_file_name, FileMode.Create, FileAccess.Write))
             {
-                work_book.Write(fs);
+                export_workbook.Write(fs);
                 fs.Close();
             }
             status_update(0, row_count, row_count, "Finish ! File name:" + Path.GetFileName(this.export_file_name));

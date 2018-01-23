@@ -32,7 +32,7 @@ namespace QualificationReviewTool
             //解决方案
             this.solution_textbox.Text = solution;
             //正则提取解决方案内容
-            Regex reg = new Regex(@"^(?<name>[\u4e00-\u9fa5 _#a-zA-Z]*),推荐(?<s_time>[\u4e00-\u9fa5 _#a-zA-Z]*)\((?<status>[\u4e00-\u9fa5 _#a-zA-Z]*)\),预计回访(?<s_time_p>[\u4e00-\u9fa5 _#0-9a-zA-Z]*)$");
+            Regex reg = new Regex(@"^(?<name>[\u4e00-\u9fa5 _#a-zA-Z]*),推荐(?<s_time>[\u4e00-\u9fa5 _#a-zA-Z0-9]*),预计回访(?<s_time_p>[\u4e00-\u9fa5 _#0-9a-zA-Z\.]*)$");
             Match match = reg.Match(solution);
             if (match.Success)
             {
@@ -135,11 +135,11 @@ namespace QualificationReviewTool
             //正则匹配,分别正则替换相关项
          if (type==0)
             {
-                base_str = Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", name + ",推荐");
+                //base_str = Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", name + ",推荐");
             }
             if (type == 1)
             {
-                base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*\(", ",推荐" + s_time + "(");
+                base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*,", ",推荐" + s_time + ",");
             }
             if (type == 2)
             {
