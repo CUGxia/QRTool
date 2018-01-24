@@ -357,7 +357,8 @@ namespace QualificationReviewTool
                         //解决方案
                         //String status = (int.Parse(match_row["笔试排名"].ToString()) > int.Parse(match_row["招录计划"].ToString())) ? "翻盘" : "状元";
                         //dataRow[3] = "#name#,推荐#recommend#(" + status + "),预计回访#visit_time#";
-                        dataRow[2] = dataRow[0]+",推荐#recommend#,预计回访#visit_time#";
+                        //dataRow[2] = dataRow[0]+",推荐#recommend#,预计回访#visit_time#";
+                        dataRow[2] ="#name#,推荐#recommend#,预计回访#visit_time#";
                         this.summary_dt.Rows.Add(dataRow);
                     }
                     else if (match_result.Count() == 0)
@@ -517,7 +518,7 @@ namespace QualificationReviewTool
                         String base_str = tempGdv.Rows[i].Cells[2].Value.ToString();
                         //正则提取解决方案内容
                         //改名
-                        //base_str=Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", EditCellWin.name_value + ",推荐");
+                        base_str=Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", EditCellWin.name_value + ",推荐");
                         base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*\,", ",推荐" + EditCellWin.s_time_value + ",");
                         base_str = Regex.Replace(base_str, @",预计回访[\u4e00-\u9fa5 \._#0-9a-zA-Z]*$", ",预计回访" + EditCellWin.rc_time_value);
                         tempGdv.Rows[i].Cells[2].Value = base_str;

@@ -135,7 +135,7 @@ namespace QualificationReviewTool
             //正则匹配,分别正则替换相关项
          if (type==0)
             {
-                //base_str = Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", name + ",推荐");
+                base_str = Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", name + ",推荐");
             }
             if (type == 1)
             {

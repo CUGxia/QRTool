@@ -85,7 +85,6 @@
             // 
             this.s_name_textbox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.s_name_textbox.Enabled = false;
             this.s_name_textbox.Location = new System.Drawing.Point(104, 16);
             this.s_name_textbox.Name = "s_name_textbox";
             this.s_name_textbox.Size = new System.Drawing.Size(314, 23);
