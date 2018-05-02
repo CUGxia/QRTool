@@ -23,11 +23,32 @@ namespace QualificationReviewTool
         private string blog_url = "https://blog.cuger.cn";
 
         private IWorkbook work_book = null;
+        private ISheet score_sheet = null;
+        private ISheet stu_sheet = null;
+        /*
+        dataRow[2] = "未报名,学员" + match_row["姓名"]
+                            + ",报考岗位:" + match_row["招录职位"]
+                            + ",招录" + match_row["招录计划"] + "人"
+                            + ",考了" + match_row["笔试折算分"] + "分"
+                            + ",排第" + match_row["笔试排名"] + "名"
+                            + ",职位代码" + match_row["职位代码"];
+                         * */
+                        //解决方案
+                        //String status = (int.Parse(match_row["笔试排名"].ToString()) > int.Parse(match_row["招录计划"].ToString())) ? "翻盘" : "状元";
+                        //dataRow[3] = "#name#,推荐#recommend#(" + status + "),预计回访#visit_time#";
+                        //dataRow[2] = dataRow[0]+",推荐#recommend#,预计回访#visit_time#";
+
+        private String[] score_header = new String[]{ "招录机关", "招录职位","职位代码","招录计划", "姓名", "准考证号", "笔试折算分", "笔试排名"};
+        private String[] stu_header = new String[] {"姓名","准考证号","电话" };
+
+        private int[,] score_header_index = null;
+        private int[,] stu_header_index = null;
+
         //考生信息表
-        private DataTable examinee_dt = null;
+        private DataTable score_dt = null;
         private String examinee_table_name = "国考入围面试中单";
         //联系方式信息表
-        private DataTable user_info_dt = null;
+        private DataTable stu_dt = null;
         private String user_info_table_name = "大量数据";
         //汇总表
         private DataTable summary_dt = null;
@@ -121,17 +142,33 @@ namespace QualificationReviewTool
         }
 
         //将NOPI转为DataTable
-        private DataTable export_to_datatable(ISheet sheet, int start_row)
+        private DataTable export_to_datatable(int type)
         {
             DataTable dt = new DataTable();
+            ISheet sheet = null;
+            String[] header = null;
+            int[,] header_index = null;
+
+            if (type == 0)
+            {
+                sheet = this.score_sheet;
+                header = this.score_header;
+                header_index = this.score_header_index;
+            }
+            else
+            {
+                sheet = this.stu_sheet;
+                header = this.stu_header;
+                header_index = this.stu_header_index;
+            }
 
             //默认，第一行是字段
-            IRow headRow = sheet.GetRow(start_row);
+            IRow headRow = sheet.GetRow(header_index[0,0]);
             int count_col = 0;
             //设置datatable字段
-            for (int i = headRow.FirstCellNum, len = headRow.LastCellNum; i < len; i++)
+            for (int i = 0, len = header_index.GetLength(1); i < len; i++)
             {
-                String tmp_str=headRow.Cells[i].StringCellValue.Replace(" ", "");
+                String tmp_str=headRow.Cells[header_index[1,i]].StringCellValue.Replace(" ", "");
                 if (!tmp_str.Equals(""))
                 {
                     count_col += 1;
@@ -139,7 +176,7 @@ namespace QualificationReviewTool
                 }
             }
             //遍历数据行
-            for (int i = (start_row + 1), len = sheet.LastRowNum + 1; i < len; i++)
+            for (int i = (header_index[0, 0] + 1), len = sheet.LastRowNum + 1; i < len; i++)
             {
                 IRow tempRow = sheet.GetRow(i);
                 DataRow dataRow = dt.NewRow();
@@ -148,7 +185,7 @@ namespace QualificationReviewTool
                 for (int r = 0, j = 0; j < count_col; j++, r++)
                 {
 
-                    ICell cell = tempRow.GetCell(j);
+                    ICell cell = tempRow.GetCell(header_index[1,j]);
 
                     if (cell != null)
                     {
@@ -179,26 +216,6 @@ namespace QualificationReviewTool
         {
             String sheet_name = this.summary_table_name;
             DataTable dt = (DataTable)summary_dt;
-            //若该表存在,则删除表
-            /*
-            for (int i = 0; i < work_book.NumberOfSheets; i++)
-            {
-                ISheet tmp_sheet = work_book.GetSheetAt(i);
-                if (tmp_sheet.SheetName == sheet_name)
-                {
-                    work_book.RemoveSheetAt(i);
-                }
-            }
-            */
-            //删除原表
-            /*for (int i = 0;  i < work_book.NumberOfSheets; i++)
-            {
-                ISheet tmp_sheet = work_book.GetSheetAt(i);
-                if (tmp_sheet.SheetName == this.examinee_table_name || tmp_sheet.SheetName == this.user_info_table_name || tmp_sheet.SheetName == sheet_name)
-                {
-                    work_book.RemoveSheetAt(i);
-                }
-            }*/
             XSSFWorkbook export_workbook = new XSSFWorkbook();
             ISheet sheet=export_workbook.CreateSheet(sheet_name);
             //ISheet sheet = work_book.CreateSheet(sheet_name);
@@ -228,14 +245,18 @@ namespace QualificationReviewTool
         }
 
         //导入文件
-        private void import_file()
+        private bool import_file(int type)
         {
+            // 0: 成绩
+            // 1: 学员
+
             //选择Excel文件
             this.impoet_file_name = this.select_file("打开Excel文件");
             if (this.impoet_file_name == null)
             {
                 //未打开文件
                 status_update(0,1,0," 未选择文件!");
+                return false;
             }
             else
             {
@@ -246,21 +267,27 @@ namespace QualificationReviewTool
                 {
                     //把xls文件读入workbook变量里，之后就可以关闭了
                     String extension = System.IO.Path.GetExtension(this.impoet_file_name);
+                    IWorkbook work_book_tmp = null;
                     if (extension.Equals(".xls"))
                     {
-                        this.work_book = new HSSFWorkbook(fs);
+                        work_book_tmp = new HSSFWorkbook(fs);
                     }
                     else
                     {
-                        this.work_book = new XSSFWorkbook(fs);
+                        work_book_tmp = new XSSFWorkbook(fs);
                     }
                     fs.Close();
                     status_update(0, 1, 0, this.impoet_file_name + "文件读取成功!");
+                    if (type == 0)
+                    {
+                        this.score_sheet = work_book_tmp.GetSheetAt(0);
+                    }
+                    else
+                    {
+                        this.stu_sheet = work_book_tmp.GetSheetAt(0);
+                    }
                 }
-                thread = new Thread(match_sms);
-                thread.Start();
-                //更新按键状态
-                update_btn_status(true);
+                return true;
             }
         }
 
@@ -286,24 +313,23 @@ namespace QualificationReviewTool
         {
             //解析数据
             status_update(0, 1, 0, "开始解析数据...");
-            this.examinee_dt = this.export_to_datatable(this.work_book.GetSheet(this.examinee_table_name), 0);
-            this.user_info_dt = this.export_to_datatable(this.work_book.GetSheet(this.user_info_table_name), 0);
+            //this.score_dt = this.export_to_datatable(this.work_book.GetSheet(this.examinee_table_name), 0);
+            //this.stu_dt = this.export_to_datatable(this.work_book.GetSheet(this.user_info_table_name), 0);
             this.summary_dt = new DataTable();
 
             status_update(0, 1, 0, "正在检查列名是否符合...");
             ArrayList col_list=new ArrayList();
-            col_list.Add("准考证号");
-            col_list.Add("考生姓名");
-            col_list.Add("部门代码");
-            col_list.Add("报考部门");
-            col_list.Add("报考职位代码");
-            col_list.Add("报考职位名称");
-            col_list.Add("最低面试分数");
+            for(int i = 0; i < this.score_header.Length; i++)
+            {
+                col_list.Add(this.score_header[i]);
+            }
             ArrayList col_list2=new ArrayList();
-            col_list2.Add("姓名");
-            col_list2.Add("电话");
+            for (int i = 0; i < this.stu_header.Length; i++)
+            {
+                col_list2.Add(this.stu_header[i]);
+            }
 
-            if(!(check_col_name(this.examinee_dt,col_list) && check_col_name(this.user_info_dt,col_list2))){
+            if (!(check_col_name(this.score_dt,col_list) && check_col_name(this.stu_dt,col_list2))){
                 //检查未通过
                 status_update(0, 1, 1, "列名检查未通过!");
             }
@@ -311,12 +337,12 @@ namespace QualificationReviewTool
             {
                 status_update(0, 1, 0, "开始匹配数据...");
                 //剔除没有名字的行
-                for (int i = 0; i < this.examinee_dt.Rows.Count; )
+                for (int i = 0; i < this.score_dt.Rows.Count; )
                 {
                     //判断名字是否为空
-                    if (string.IsNullOrEmpty(this.examinee_dt.Rows[i]["考生姓名"].ToString()))
+                    if (string.IsNullOrEmpty(this.score_dt.Rows[i]["准考证号"].ToString()))
                     {
-                        examinee_dt.Rows.RemoveAt(i);
+                        score_dt.Rows.RemoveAt(i);
                     }
                     else
                     {
@@ -325,55 +351,80 @@ namespace QualificationReviewTool
                 }
                 // 增加列
                 this.summary_dt.Columns.Add("姓名");
+                this.summary_dt.Columns.Add("准考证号");
                 this.summary_dt.Columns.Add("手机号");
+                this.summary_dt.Columns.Add("描述");
                 //this.summary_dt.Columns.Add("描述");
                 this.summary_dt.Columns.Add("解决方案");
 
-                int row_count = this.user_info_dt.Rows.Count;
+                int row_count = this.stu_dt.Rows.Count;
                 //两表匹配,展示结果,以手机号表为基准
                 for (int i = 0; i < row_count; i++)
                 {
                     //匹配名字,获取考试信息
-                    DataRow[] match_result = this.match_info_by_name(this.examinee_dt, this.user_info_dt.Rows[i]["姓名"].ToString());
+                    DataRow[] match_result_by_id = this.match_info_by_id_or_name(this.score_dt, this.stu_dt.Rows[i]["准考证号"].ToString(),0);
+                    DataRow[] match_result_by_name = this.match_info_by_id_or_name(this.score_dt, this.stu_dt.Rows[i]["姓名"].ToString(), 1);
+                    DataRow[] match_result = null;
+                    if(match_result_by_id.Count() == 1)
+                    {
+                        match_result = match_result_by_id;
+                    }
+                    else
+                    {
+                        match_result = match_result_by_name;
+                    }
                     DataRow match_row = null;
                     DataRow dataRow = this.summary_dt.NewRow();
                     //姓名
-                    dataRow[0] = this.user_info_dt.Rows[i]["姓名"];
+                    dataRow[0] = this.stu_dt.Rows[i]["姓名"];
+                    dataRow[1] = this.stu_dt.Rows[i]["准考证号"];
                     //电话
-                    dataRow[1] = this.user_info_dt.Rows[i]["电话"];
-                    if (match_result.Count() == 1)
+                    dataRow[2] = this.stu_dt.Rows[i]["电话"];
+                    if (match_result_by_id.Count() == 1)
                     {
                         //成功匹配到
                         match_row = (DataRow)match_result[0];
                         //描述
-                        /*
-                        dataRow[2] = "未报名,学员" + match_row["姓名"]
+                        //{ "招录机关", "招录职位","职位代码","招录计划", "姓名", "准考证号", "笔试折算分", "笔试排名"};
+                        dataRow[3] = "未报名,学员" + match_row["姓名"]
                             + ",报考岗位:" + match_row["招录职位"]
                             + ",招录" + match_row["招录计划"] + "人"
                             + ",考了" + match_row["笔试折算分"] + "分"
                             + ",排第" + match_row["笔试排名"] + "名"
                             + ",职位代码" + match_row["职位代码"];
-                         * */
                         //解决方案
-                        //String status = (int.Parse(match_row["笔试排名"].ToString()) > int.Parse(match_row["招录计划"].ToString())) ? "翻盘" : "状元";
+                        String status = (int.Parse(match_row["笔试排名"].ToString()) > int.Parse(match_row["招录计划"].ToString())) ? "翻盘" : "状元";
                         //dataRow[3] = "#name#,推荐#recommend#(" + status + "),预计回访#visit_time#";
                         //dataRow[2] = dataRow[0]+",推荐#recommend#,预计回访#visit_time#";
-                        dataRow[2] ="#name#,推荐#recommend#,预计回访#visit_time#";
-                        this.summary_dt.Rows.Add(dataRow);
+                        dataRow[4] = "#name#,推荐#recommend#(" + status + "),预计回访#visit_time#";
                     }
                     else if (match_result.Count() == 0)
                     {
                         //未匹配到
-                        dataRow[2] = "未查询到该生信息!";
+                        dataRow[3] = "";
+                        dataRow[4] = "未查询到该生信息!";
                         //dataRow[3] = "#name#,推荐#recommend#(" + "未匹配" + "),预计回访#visit_time#";
+                    }
+                    else if (match_result.Count() > 0)
+                    {
+                        //大于1,多个匹配
+                        /*
+                        dataRow[3] = "未报名,学员" + match_row["姓名"]
+                            + ",报考岗位:" + match_row["招录职位"]
+                            + ",招录" + match_row["招录计划"] + "人"
+                            + ",考了" + match_row["笔试折算分"] + "分"
+                            + ",排第" + match_row["笔试排名"] + "名"
+                            + ",职位代码" + match_row["职位代码"];
+                            */
+                        dataRow[3] = "该姓名存在多条记录!请人工处理!";
+                        dataRow[4] = "#name#,推荐#recommend#(" + "多条匹配" + "),预计回访#visit_time#";
                     }
                     else
                     {
-                        //大于1,多个匹配
-                        dataRow[2] = "该姓名存在多条记录!请人工处理!";
-                        //dataRow[3] = "#name#,推荐#recommend#(" + "多条匹配" + "),预计回访#visit_time#";
-                        this.summary_dt.Rows.Add(dataRow);
+                        dataRow[3] = "未知匹配错误!";
+                        dataRow[4] = "#name#,推荐#recommend#(" + "未知匹配错误" + "),预计回访#visit_time#";
                     }
+                    this.summary_dt.Rows.Add(dataRow);
                     //更新进度条和状态栏
                     status_update(0, row_count, i, "Current:" + i + "/" + row_count + "(" + string.Format("{0:0.00%}", Convert.ToDouble(i) / Convert.ToDouble(row_count)) + "). Please wait.");
                 }
@@ -426,9 +477,17 @@ namespace QualificationReviewTool
         }
 
         //搜索对应关系
-        private DataRow[] match_info_by_name(DataTable dt,String name)
+        private DataRow[] match_info_by_id_or_name(DataTable dt,String data,int type)
         {
-            return dt.Select("考生姓名='"+name+"'");
+            if (type == 0)
+            {
+                // 准考证
+                return dt.Select("准考证号='" + data + "'");
+            }
+            else
+            {
+                return dt.Select("姓名='" + data + "'");
+            }
         }
 
         //退出程序提示
@@ -458,10 +517,28 @@ namespace QualificationReviewTool
 
         /* 前端事件 */
 
-        private void import_btn_Click(object sender, EventArgs e)
+        private void import_score_btn_Click(object sender, EventArgs e)
         {
             //导入文件
-            this.import_file();
+            if (this.import_file(0) == true)
+            {
+                //导入成功,寻找标题
+                if (!get_header_index(0))
+                {
+                    MessageBox.Show("列匹配失败，程序中止");
+                }
+                else
+                {
+                    // 转换为table
+                    this.score_dt = this.export_to_datatable(0);
+                    this.import_stu_btn.Enabled = true;
+                }
+            }
+            else
+            {
+                //导入失败
+                MessageBox.Show("成绩文件导入失败!");
+            }
         }
 
         private void statusbar_about_Click(object sender, EventArgs e)
@@ -508,20 +585,20 @@ namespace QualificationReviewTool
                 String tempStr = tempGdv.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
                 //打开新窗口
                 Form edit_cell_win = new EditCellWin(
-                    tempGdv.Rows[e.RowIndex].Cells[2].Value.ToString()
+                    tempGdv.Rows[e.RowIndex].Cells[4].Value.ToString()
                     );
                 if (edit_cell_win.ShowDialog() == DialogResult.OK)
                 {
                     //修改所有行的解决方案
                     for (int i = 0; i < tempGdv.Rows.Count; i++)
                     {
-                        String base_str = tempGdv.Rows[i].Cells[2].Value.ToString();
+                        String base_str = tempGdv.Rows[i].Cells[4].Value.ToString();
                         //正则提取解决方案内容
                         //改名
                         base_str=Regex.Replace(base_str, @"^[\u4e00-\u9fa5 _#a-zA-Z]*,推荐", EditCellWin.name_value + ",推荐");
-                        base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*\,", ",推荐" + EditCellWin.s_time_value + ",");
-                        base_str = Regex.Replace(base_str, @",预计回访[\u4e00-\u9fa5 \._#0-9a-zA-Z]*$", ",预计回访" + EditCellWin.rc_time_value);
-                        tempGdv.Rows[i].Cells[2].Value = base_str;
+                        base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*\(", ",推荐" + EditCellWin.s_time_value + "(");
+                        base_str = Regex.Replace(base_str, @"\),预计回访[\u4e00-\u9fa5 \._#0-9a-zA-Z]*$", "),预计回访" + EditCellWin.rc_time_value);
+                        tempGdv.Rows[i].Cells[4].Value = base_str;
                     }
                 }
             }
@@ -572,6 +649,101 @@ namespace QualificationReviewTool
             this.clear_ToolStripMenuItem.Enabled = r;
             this.insert_ToolStripMenuItem.Enabled = r;
             this.export_ToolStripMenuItem.Enabled = r;
+        }
+
+        private bool get_header_index(int type)
+        {
+            string[] header = null;
+            ISheet sheet = null;
+            if (type==0)
+            {
+                header = this.score_header;
+                sheet = this.score_sheet;
+            }
+            else
+            {
+                header = this.stu_header;
+                sheet = this.stu_sheet;
+            }
+            int[,] result = new int[2, header.Length];
+            bool all_find = true;
+            for(int i = 0; i < header.Length; i++)
+            {
+                bool find_it = false;
+                for(int row_i = 0; row_i <= sheet.FirstRowNum+2; row_i++)
+                {
+                    IRow row=sheet.GetRow(row_i);
+                    for(int col_j = 0; col_j < row.LastCellNum; col_j++)
+                    {
+                        if (row.GetCell(col_j).StringCellValue.Replace(" ","")== header[i])
+                        {
+                            //row.GetCell(col_j).ToString().Equals(header[i])
+                            result[0, i] = row_i;
+                            result[1, i] = col_j;
+                            find_it = true;
+                            break;
+                        }
+                    }
+                    if (find_it)
+                    {
+                        break;
+                    }
+                }
+                if (find_it == false)
+                {
+                    // 遍历前10行未找到
+                    MessageBox.Show("检查列名" + header[i] + "是否存在!");
+                    all_find = false;
+                    break;
+                }
+            }
+            if (all_find)
+            {
+                if (type == 0)
+                {
+                    this.score_header_index = result;
+                }
+                else
+                {
+                    this.stu_header_index = result;
+                }
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private void import_stu_btn_Click(object sender, EventArgs e)
+        {
+            //导入文件
+            if (this.import_file(1) == true)
+            {
+                //导入成功,寻找标题
+                if (!get_header_index(1))
+                {
+                    MessageBox.Show("列匹配失败，程序中止");
+                }
+                else
+                {
+                    // 转换为table
+                    this.stu_dt = this.export_to_datatable(1);
+                    this.import_score_btn.Enabled = true;
+                    this.import_stu_btn.Enabled = false;
+                    // 多线程,数据匹配
+                    Thread matchThread = new Thread(new ThreadStart(this.match_sms));
+                    matchThread.Start();
+                    this.insert_btn.Enabled = true;
+                    this.export_btn.Enabled = true;
+                    this.clear_btn.Enabled = true;
+                }
+            }
+            else
+            {
+                //导入失败
+                MessageBox.Show("学员文件导入失败!");
+            }
         }
     }
 }

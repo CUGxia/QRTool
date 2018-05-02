@@ -32,7 +32,7 @@ namespace QualificationReviewTool
             //解决方案
             this.solution_textbox.Text = solution;
             //正则提取解决方案内容
-            Regex reg = new Regex(@"^(?<name>[\u4e00-\u9fa5 _#a-zA-Z]*),推荐(?<s_time>[\u4e00-\u9fa5 _#a-zA-Z0-9]*),预计回访(?<s_time_p>[\u4e00-\u9fa5 _#0-9a-zA-Z\.]*)$");
+            Regex reg = new Regex(@"^(?<name>[\u4e00-\u9fa5 _#a-zA-Z]*),推荐(?<s_time>[\u4e00-\u9fa5 _#a-zA-Z0-9]*)(?<type>\([\u4e00-\u9fa5 ]*\)),预计回访(?<s_time_p>[\u4e00-\u9fa5 _#0-9a-zA-Z\.]*)$");
             Match match = reg.Match(solution);
             if (match.Success)
             {
@@ -139,11 +139,11 @@ namespace QualificationReviewTool
             }
             if (type == 1)
             {
-                base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*,", ",推荐" + s_time + ",");
+                base_str = Regex.Replace(base_str, @",推荐[\u4e00-\u9fa5 _#0-9a-zA-Z]*\(", ",推荐" + s_time + "(");
             }
             if (type == 2)
             {
-                base_str = Regex.Replace(base_str, @",预计回访[\u4e00-\u9fa5 \._#0-9a-zA-Z]*$", ",预计回访" + s_time_picker.ToString("yyyy.MM.dd"));
+                base_str = Regex.Replace(base_str, @"\),预计回访[\u4e00-\u9fa5 \._#0-9a-zA-Z]*$", "),预计回访" + s_time_picker.ToString("yyyy.MM.dd"));
             }
             this.solution_textbox.Text = base_str;
         }
