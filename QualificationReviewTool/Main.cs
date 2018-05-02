@@ -176,11 +176,16 @@ namespace QualificationReviewTool
                 }
             }
             //遍历数据行
-            for (int i = (header_index[0, 0] + 1), len = sheet.LastRowNum + 1; i < len; i++)
+            for (int i = (header_index[0, 0] + 1), len = sheet.LastRowNum; i < len; i++)
             {
                 IRow tempRow = sheet.GetRow(i);
                 DataRow dataRow = dt.NewRow();
 
+                if (tempRow==null)
+                {
+                    break;
+                }
+            
                 //遍历一行的每一个单元格
                 for (int r = 0, j = 0; j < count_col; j++, r++)
                 {
@@ -670,12 +675,12 @@ namespace QualificationReviewTool
             for(int i = 0; i < header.Length; i++)
             {
                 bool find_it = false;
-                for(int row_i = 0; row_i <= sheet.FirstRowNum+2; row_i++)
+                for(int row_i = 0; row_i <= sheet.FirstRowNum+5; row_i++)
                 {
                     IRow row=sheet.GetRow(row_i);
-                    for(int col_j = 0; col_j < row.LastCellNum; col_j++)
+                    for(int col_j = 0; col_j < row.Count(); col_j++)
                     {
-                        if (row.GetCell(col_j).StringCellValue.Replace(" ","")== header[i])
+                        if (row.GetCell(col_j)!=null && row.GetCell(col_j).CellType==CellType.String && row.GetCell(col_j).StringCellValue.Replace(" ","")== header[i])
                         {
                             //row.GetCell(col_j).ToString().Equals(header[i])
                             result[0, i] = row_i;
@@ -692,7 +697,7 @@ namespace QualificationReviewTool
                 if (find_it == false)
                 {
                     // 遍历前10行未找到
-                    MessageBox.Show("检查列名" + header[i] + "是否存在!");
+                    MessageBox.Show("检查列名\"" + header[i] + "\"是否存在!");
                     all_find = false;
                     break;
                 }
