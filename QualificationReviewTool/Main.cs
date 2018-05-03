@@ -15,6 +15,9 @@ using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using System.Text.RegularExpressions;
+using System.Net.Http;
+using System.Management;
+using System.Configuration;
 
 namespace QualificationReviewTool
 {
@@ -68,6 +71,8 @@ namespace QualificationReviewTool
             InitializeComponent();
             //初始化
             update_btn_status(false);
+
+            send_open_signAsync();
         }
 
 
@@ -385,10 +390,12 @@ namespace QualificationReviewTool
                     dataRow[1] = this.stu_dt.Rows[i]["准考证号"];
                     //电话
                     dataRow[2] = this.stu_dt.Rows[i]["电话"];
-                    if (match_result_by_id.Count() == 1)
+                    if (match_result.Count() == 1)
                     {
                         //成功匹配到
                         match_row = (DataRow)match_result[0];
+                        dataRow[0] = match_row["姓名"];
+                        dataRow[1] = match_row["准考证号"];
                         //描述
                         //{ "招录机关", "招录职位","职位代码","招录计划", "姓名", "准考证号", "笔试折算分", "笔试排名"};
                         dataRow[3] = "未报名,学员" + match_row["姓名"]
@@ -402,6 +409,7 @@ namespace QualificationReviewTool
                         //dataRow[3] = "#name#,推荐#recommend#(" + status + "),预计回访#visit_time#";
                         //dataRow[2] = dataRow[0]+",推荐#recommend#,预计回访#visit_time#";
                         dataRow[4] = "#name#,推荐#recommend#(" + status + "),预计回访#visit_time#";
+                        this.summary_dt.Rows.Add(dataRow);
                     }
                     else if (match_result.Count() == 0)
                     {
@@ -410,7 +418,7 @@ namespace QualificationReviewTool
                         dataRow[4] = "未查询到该生信息!";
                         //dataRow[3] = "#name#,推荐#recommend#(" + "未匹配" + "),预计回访#visit_time#";
                     }
-                    else if (match_result.Count() > 0)
+                    else if (match_result.Count() > 1)
                     {
                         //大于1,多个匹配
                         /*
@@ -423,13 +431,13 @@ namespace QualificationReviewTool
                             */
                         dataRow[3] = "该姓名存在多条记录!请人工处理!";
                         dataRow[4] = "#name#,推荐#recommend#(" + "多条匹配" + "),预计回访#visit_time#";
+                        this.summary_dt.Rows.Add(dataRow);
                     }
                     else
                     {
                         dataRow[3] = "未知匹配错误!";
                         dataRow[4] = "#name#,推荐#recommend#(" + "未知匹配错误" + "),预计回访#visit_time#";
                     }
-                    this.summary_dt.Rows.Add(dataRow);
                     //更新进度条和状态栏
                     status_update(0, row_count, i, "Current:" + i + "/" + row_count + "(" + string.Format("{0:0.00%}", Convert.ToDouble(i) / Convert.ToDouble(row_count)) + "). Please wait.");
                 }
@@ -749,6 +757,194 @@ namespace QualificationReviewTool
                 //导入失败
                 MessageBox.Show("学员文件导入失败!");
             }
+        }
+
+        private async void send_open_signAsync()
+        {
+            using (var client = new HttpClient())
+            {
+                var values = new List<KeyValuePair<string, string>>();
+                values.Add(new KeyValuePair<string, string>("software_name", "QRTool_v_2_0_4.exe"));
+                //values.Add(new KeyValuePair<string, string>("open_time",DateTime.Now.ToString()));
+                values.Add(new KeyValuePair<string, string>("mac", GetMacAddress()));
+
+                String detail = "Computer Name:"+GetComputerName()+";User Name:"+GetUserName()+";IP:"+GetIPAddress()+";Mac:"+GetMacAddress()+";System Type:"+GetSystemType()+";Memory:"+GetTotalPhysicalMemory();
+                values.Add(new KeyValuePair<string, string>("detail", detail));
+                /*
+                values.Add(new KeyValuePair<string, string>("ip", GetIPAddress()));
+                values.Add(new KeyValuePair<string, string>("memory", GetTotalPhysicalMemory()));
+                values.Add(new KeyValuePair<string, string>("computer_name", GetComputerName()));
+                values.Add(new KeyValuePair<string, string>("system_type", GetComputerName()));
+                */
+
+                var content = new FormUrlEncodedContent(values);
+
+                var response = await client.PostAsync("https://api.cuger.cn/software/log", content);
+
+                var responseString = await response.Content.ReadAsStringAsync();
+            }
+        }
+        public string GetMacAddress()
+        {
+            try
+            {
+                //获取网卡硬件地址 
+                string mac = "";
+                ManagementClass mc = new ManagementClass("Win32_NetworkAdapterConfiguration");
+                ManagementObjectCollection moc = mc.GetInstances();
+                foreach (ManagementObject mo in moc)
+                {
+                    if ((bool)mo["IPEnabled"] == true)
+                    {
+                        mac = mo["MacAddress"].ToString();
+                        break;
+                    }
+                }
+                moc = null;
+                mc = null;
+                return mac;
+            }
+            catch
+            {
+                return "unknow";
+            }
+            finally
+            {
+            }
+
+        }
+       
+        public string GetIPAddress()
+        {
+            try
+            {
+                //获取IP地址 
+                string st = "";
+                ManagementClass mc = new ManagementClass("Win32_NetworkAdapterConfiguration");
+                ManagementObjectCollection moc = mc.GetInstances();
+                foreach (ManagementObject mo in moc)
+                {
+                    if ((bool)mo["IPEnabled"] == true)
+                    {
+                        //st=mo["IpAddress"].ToString(); 
+                        System.Array ar;
+                        ar = (System.Array)(mo.Properties["IpAddress"].Value);
+                        st = ar.GetValue(0).ToString();
+                        break;
+                    }
+                }
+                moc = null;
+                mc = null;
+                return st;
+            }
+            catch
+            {
+                return "unknow";
+            }
+            finally
+            {
+            }
+
+        }
+
+        public string GetUserName()
+        {
+            try
+            {
+                string st = "";
+                ManagementClass mc = new ManagementClass("Win32_ComputerSystem");
+                ManagementObjectCollection moc = mc.GetInstances();
+                foreach (ManagementObject mo in moc)
+                {
+
+                    st = mo["UserName"].ToString();
+
+                }
+                moc = null;
+                mc = null;
+                return st;
+            }
+            catch
+            {
+                return "unknow";
+            }
+            finally
+            {
+            }
+
+        }
+
+        public string GetTotalPhysicalMemory()
+        {
+            try
+            {
+
+                string st = "";
+                ManagementClass mc = new ManagementClass("Win32_ComputerSystem");
+                ManagementObjectCollection moc = mc.GetInstances();
+                foreach (ManagementObject mo in moc)
+                {
+
+                    st = mo["TotalPhysicalMemory"].ToString();
+
+                }
+                moc = null;
+                mc = null;
+                return st;
+            }
+            catch
+            {
+                return "unknow";
+            }
+            finally
+            {
+            }
+        }
+
+        public string GetComputerName()
+        {
+            try
+            {
+                return System.Environment.GetEnvironmentVariable("ComputerName");
+            }
+            catch
+            {
+                return "unknow";
+            }
+            finally
+            {
+            }
+        }
+
+        /// <summary> 
+        /// PC类型 
+        /// </summary> 
+        /// <returns></returns> 
+        public string GetSystemType()
+        {
+            try
+            {
+                string st = "";
+                ManagementClass mc = new ManagementClass("Win32_ComputerSystem");
+                ManagementObjectCollection moc = mc.GetInstances();
+                foreach (ManagementObject mo in moc)
+                {
+
+                    st = mo["SystemType"].ToString();
+
+                }
+                moc = null;
+                mc = null;
+                return st;
+            }
+            catch
+            {
+                return "unknow";
+            }
+            finally
+            {
+            }
+
         }
     }
 }
